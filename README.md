@@ -1,36 +1,108 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Data Density Heatmap Application
+
+A web-based heatmap visualization tool that represents the completeness and distribution of data across datasets. The application displays data "density" by GraphQL node types and their specific attributes, enabling users to quickly identify areas with high or low data availability.
+
+## Features
+
+- **Interactive D3.js Heatmap** — Color-coded cells showing data completeness (0%–100%) per node type and attribute, with hover tooltips revealing detailed stats
+- **Configuration-Driven** — Supply a JSON configuration pointing to any GraphQL endpoint with custom node types and attributes
+- **Live GraphQL Fetching** — Connect to real GraphQL endpoints and compute density in real-time with progress tracking
+- **Built-in Demo Mode** — Ships with realistic clinical trials demo data (Patient, Specimen, Genomic Profile, Treatment, Diagnosis, Imaging)
+- **Multiple Views** — Heatmap, detailed per-node breakdowns, and density distribution charts
+- **Display Controls** — Toggle value labels, summary bars, sort by density, adjust cell size, and pick from multiple color schemes
+- **JSON Config Editor** — In-app editor with validation, template generation, and file import
+- **Data Export** — Export heatmap data as JSON for external analysis
+- **Responsive UI** — Built with ShadCN UI components, Tailwind CSS, and dark mode support
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 16 (App Router, TypeScript) |
+| Runtime | Bun |
+| Visualization | D3.js |
+| Styling | Tailwind CSS v4 |
+| UI Components | ShadCN UI (Radix primitives) |
+| Data Layer | GraphQL (graphql-request) |
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- [Bun](https://bun.sh/) v1.0+
+
+### Install & Run
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
+# Install dependencies
+bun install
+
+# Start dev server
 bun dev
+
+# Build for production
+bun run build
+
+# Start production server
+bun start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to see the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Configuration
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The application is configuration-driven. Create a JSON config to connect to your own GraphQL endpoint:
 
-## Learn More
+```json
+{
+  "title": "My Dataset — Data Density",
+  "description": "Describe your dataset",
+  "endpoint": "https://your-graphql-endpoint.com/graphql",
+  "headers": {
+    "Authorization": "Bearer YOUR_TOKEN"
+  },
+  "nodeTypes": [
+    {
+      "typeName": "Patient",
+      "displayName": "Patient",
+      "query": "query { patients { id name age gender } }",
+      "dataPath": "patients",
+      "attributes": [
+        { "fieldName": "name", "displayName": "Name" },
+        { "fieldName": "age", "displayName": "Age" },
+        { "fieldName": "gender", "displayName": "Gender" }
+      ]
+    }
+  ]
+}
+```
 
-To learn more about Next.js, take a look at the following resources:
+Paste this into the **JSON Editor** tab in the settings sidebar, or import a `.json` file.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+├── app/
+│   ├── api/graphql/route.ts   # Mock GraphQL API for demo data
+│   ├── globals.css             # Tailwind + ShadCN theme
+│   ├── layout.tsx              # Root layout
+│   └── page.tsx                # Main application page
+├── components/
+│   ├── ui/                     # ShadCN UI components
+│   ├── heatmap-chart.tsx       # D3.js heatmap visualization
+│   ├── stats-overview.tsx      # Summary statistics cards
+│   ├── node-type-detail.tsx    # Per-node-type detail view
+│   ├── display-controls.tsx    # Visualization settings panel
+│   ├── config-editor.tsx       # Configuration JSON editor
+│   └── color-legend.tsx        # Color legend & distribution chart
+├── lib/
+│   ├── types.ts                # TypeScript type definitions
+│   ├── config.ts               # Configuration parsing & validation
+│   ├── graphql-client.ts       # GraphQL client & density computation
+│   ├── demo-data.ts            # Demo data generator
+│   └── utils.ts                # Utility functions (cn)
+```
 
-## Deploy on Vercel
+## License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT
