@@ -1,108 +1,97 @@
 # Data Density Heatmap Application
 
-A web-based heatmap visualization tool that represents the completeness and distribution of data across datasets. The application displays data "density" by GraphQL node types and their specific attributes, enabling users to quickly identify areas with high or low data availability.
+This repository contains a modular MVP for analyzing GraphQL dataset completeness and visualizing it as a heatmap matrix.
 
-## Features
+It is designed as a practical demonstration for the D4CG / Chicago PCDC context, with an emphasis on clear architecture, maintainability, and correctness.
 
-- **Interactive D3.js Heatmap** — Color-coded cells showing data completeness (0%–100%) per node type and attribute, with hover tooltips revealing detailed stats
-- **Configuration-Driven** — Supply a JSON configuration pointing to any GraphQL endpoint with custom node types and attributes
-- **Live GraphQL Fetching** — Connect to real GraphQL endpoints and compute density in real-time with progress tracking
-- **Built-in Demo Mode** — Ships with realistic clinical trials demo data (Patient, Specimen, Genomic Profile, Treatment, Diagnosis, Imaging)
-- **Multiple Views** — Heatmap, detailed per-node breakdowns, and density distribution charts
-- **Display Controls** — Toggle value labels, summary bars, sort by density, adjust cell size, and pick from multiple color schemes
-- **JSON Config Editor** — In-app editor with validation, template generation, and file import
-- **Data Export** — Export heatmap data as JSON for external analysis
-- **Responsive UI** — Built with ShadCN UI components, Tailwind CSS, and dark mode support
+## What It Does
+
+1. Introspects a GraphQL schema.
+1. Discovers queryable node types and scalar/enum attributes.
+1. Fetches records in batches using Apollo Client.
+1. Computes per-attribute density:
+
+$$
+density = \frac{non\_null\_values}{total\_records}
+$$
+
+1. Produces a matrix and renders it with D3.js heatmap cells.
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | Next.js 16 (App Router, TypeScript) |
-| Runtime | Bun |
-| Visualization | D3.js |
-| Styling | Tailwind CSS v4 |
-| UI Components | ShadCN UI (Radix primitives) |
-| Data Layer | GraphQL (graphql-request) |
+- Next.js App Router + TypeScript
+- Apollo Client
+- GraphQL
+- D3.js
+- Zod
+- Vitest
 
-## Getting Started
+## Architecture
 
-### Prerequisites
+The codebase is organized by responsibilities:
 
-- [Bun](https://bun.sh/) v1.0+
-
-### Install & Run
-
-```bash
-# Install dependencies
-bun install
-
-# Start dev server
-bun dev
-
-# Build for production
-bun run build
-
-# Start production server
-bun start
-```
-
-Open [http://localhost:3000](http://localhost:3000) to see the application.
+- `app/`
+  - API routes and Next.js app entrypoints
+  - `app/api/graphql/route.ts`: in-repo GraphQL demo endpoint (supports introspection)
+  - `app/api/heatmap/route.ts`: computes heatmap data from runtime config
+- `src/config/`
+  - config schema + default config + validation
+- `src/graphql/`
+  - Apollo client setup, schema discovery, batched record fetch
+- `src/services/`
+  - density calculations and heatmap model transformation
+- `src/components/heatmap/`
+  - D3 chart, legend, and density table
+- `src/hooks/`
+  - UI data-fetch orchestration
+- `src/types/`
+  - shared domain types
 
 ## Configuration
 
-The application is configuration-driven. Create a JSON config to connect to your own GraphQL endpoint:
+Default runtime config lives in `src/config/dataset.config.ts` and is fully validated with Zod.
 
-```json
-{
-  "title": "My Dataset — Data Density",
-  "description": "Describe your dataset",
-  "endpoint": "https://your-graphql-endpoint.com/graphql",
-  "headers": {
-    "Authorization": "Bearer YOUR_TOKEN"
-  },
-  "nodeTypes": [
-    {
-      "typeName": "Patient",
-      "displayName": "Patient",
-      "query": "query { patients { id name age gender } }",
-      "dataPath": "patients",
-      "attributes": [
-        { "fieldName": "name", "displayName": "Name" },
-        { "fieldName": "age", "displayName": "Age" },
-        { "fieldName": "gender", "displayName": "Gender" }
-      ]
-    }
-  ]
-}
+You can configure:
+
+- endpoint URL
+- node type include/exclude filters
+- attribute exclude list
+- max records per node
+- query batch size
+
+At runtime, the UI exposes these controls, and the API validates the config before analysis.
+
+## Running Locally
+
+```bash
+npm install
+npm run dev
 ```
 
-Paste this into the **JSON Editor** tab in the settings sidebar, or import a `.json` file.
+App URL:
 
-## Project Structure
+- `http://localhost:3000`
 
-```
-├── app/
-│   ├── api/graphql/route.ts   # Mock GraphQL API for demo data
-│   ├── globals.css             # Tailwind + ShadCN theme
-│   ├── layout.tsx              # Root layout
-│   └── page.tsx                # Main application page
-├── components/
-│   ├── ui/                     # ShadCN UI components
-│   ├── heatmap-chart.tsx       # D3.js heatmap visualization
-│   ├── stats-overview.tsx      # Summary statistics cards
-│   ├── node-type-detail.tsx    # Per-node-type detail view
-│   ├── display-controls.tsx    # Visualization settings panel
-│   ├── config-editor.tsx       # Configuration JSON editor
-│   └── color-legend.tsx        # Color legend & distribution chart
-├── lib/
-│   ├── types.ts                # TypeScript type definitions
-│   ├── config.ts               # Configuration parsing & validation
-│   ├── graphql-client.ts       # GraphQL client & density computation
-│   ├── demo-data.ts            # Demo data generator
-│   └── utils.ts                # Utility functions (cn)
+## Quality Checks
+
+```bash
+npm run lint
+npm run test
+npm run build
 ```
 
-## License
+## Deployment
 
-MIT
+Deploy with Vercel:
+
+1. Import this repository into Vercel.
+2. Set `NEXT_PUBLIC_GRAPHQL_ENDPOINT` if using a remote GraphQL source.
+3. Deploy.
+
+## Design Decisions
+
+- Configuration-driven behavior instead of hardcoded node queries.
+- Introspection-based discovery to adapt to changing schemas.
+- Batched query execution for fewer round-trips.
+- Separation of UI, GraphQL integration, and density logic for maintainability.
+- Unit tests on critical transformation logic.

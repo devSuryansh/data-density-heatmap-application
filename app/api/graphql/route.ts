@@ -1,16 +1,22 @@
 import { NextResponse } from "next/server";
+import {
+  GraphQLFloat,
+  GraphQLInt,
+  GraphQLList,
+  GraphQLObjectType,
+  GraphQLSchema,
+  GraphQLString,
+  graphql,
+} from "graphql";
 
-/**
- * Mock GraphQL API endpoint that serves demo data for the heatmap.
- * In production, this would be replaced by a real GraphQL endpoint.
- */
+type RecordValue = string | number | null;
+type DemoRecord = Record<string, RecordValue>;
 
-// Seeded random generator for consistent mock data
 function createSeededRandom(seed: number) {
-  let s = seed;
+  let value = seed;
   return () => {
-    s = (s * 16807) % 2147483647;
-    return (s - 1) / 2147483646;
+    value = (value * 16807) % 2147483647;
+    return (value - 1) / 2147483646;
   };
 }
 
@@ -18,128 +24,177 @@ function generateMockRecords(
   fields: string[],
   count: number,
   densityProfile: Record<string, number>,
-  seed: number
-): Record<string, unknown>[] {
+  seed: number,
+): DemoRecord[] {
   const random = createSeededRandom(seed);
-  const records: Record<string, unknown>[] = [];
 
-  for (let i = 0; i < count; i++) {
-    const record: Record<string, unknown> = { id: `id-${i + 1}` };
-    for (const field of fields) {
+  return Array.from({ length: count }, (_, index) => {
+    const record: DemoRecord = { id: `id-${index + 1}` };
+
+    fields.forEach((field) => {
       const fillRate = densityProfile[field] ?? 0.7;
-      record[field] = random() < fillRate ? `mock-${field}-${i}` : null;
-    }
-    records.push(record);
-  }
+      const isFilled = random() < fillRate;
 
-  return records;
+      if (!isFilled) {
+        record[field] = null;
+        return;
+      }
+
+      if (field.toLowerCase().includes("age") || field.toLowerCase().includes("count")) {
+        record[field] = Math.round(random() * 100);
+      } else if (field.toLowerCase().includes("coverage") || field.toLowerCase().includes("volume")) {
+        record[field] = Number((random() * 250).toFixed(2));
+      } else {
+        record[field] = `${field}-${index + 1}`;
+      }
+    });
+
+    return record;
+  });
 }
 
-const MOCK_DATA_MAP: Record<string, () => unknown> = {
-  patients: () =>
-    generateMockRecords(
-      ["name", "age", "gender", "ethnicity", "diagnosis", "enrollmentDate", "contactEmail", "insuranceId", "primaryPhysician"],
-      1247,
-      {
-        name: 0.98, age: 0.95, gender: 0.92, ethnicity: 0.55,
-        diagnosis: 0.88, enrollmentDate: 0.96, contactEmail: 0.45,
-        insuranceId: 0.38, primaryPhysician: 0.72,
-      },
-      101
-    ),
-  specimens: () =>
-    generateMockRecords(
-      ["type", "collectionDate", "volume", "storageTemp", "preservationMethod", "quality", "sourceOrgan", "patientId"],
-      3891,
-      {
-        type: 0.95, collectionDate: 0.82, volume: 0.68, storageTemp: 0.74,
-        preservationMethod: 0.58, quality: 0.45, sourceOrgan: 0.78, patientId: 0.99,
-      },
-      202
-    ),
-  genomicProfiles: () =>
-    generateMockRecords(
-      ["sequencingPlatform", "libraryStrategy", "referenceGenome", "coverage", "mutationCount", "fusionCount", "copyNumberAlterations", "tumorMutationalBurden", "microsatelliteStatus"],
-      892,
-      {
-        sequencingPlatform: 0.92, libraryStrategy: 0.85, referenceGenome: 0.95,
-        coverage: 0.65, mutationCount: 0.58, fusionCount: 0.32,
-        copyNumberAlterations: 0.42, tumorMutationalBurden: 0.28, microsatelliteStatus: 0.22,
-      },
-      303
-    ),
-  treatments: () =>
-    generateMockRecords(
-      ["type", "regimen", "startDate", "endDate", "dosage", "responseStatus", "adverseEvents", "followUpDate", "outcome"],
-      2156,
-      {
-        type: 0.95, regimen: 0.82, startDate: 0.93, endDate: 0.55,
-        dosage: 0.72, responseStatus: 0.65, adverseEvents: 0.35,
-        followUpDate: 0.48, outcome: 0.42,
-      },
-      404
-    ),
-  diagnoses: () =>
-    generateMockRecords(
-      ["code", "description", "site", "stage", "grade", "morphology", "diagnosisDate", "pathologicalFindings", "clinicalNotes"],
-      1305,
-      {
-        code: 0.97, description: 0.92, site: 0.88, stage: 0.82,
-        grade: 0.75, morphology: 0.55, diagnosisDate: 0.94,
-        pathologicalFindings: 0.45, clinicalNotes: 0.32,
-      },
-      505
-    ),
-  imagingStudies: () =>
-    generateMockRecords(
-      ["modality", "bodyPart", "studyDate", "seriesCount", "instanceCount", "contrast", "resolution", "findings", "radiologistNotes"],
-      567,
-      {
-        modality: 0.95, bodyPart: 0.82, studyDate: 0.88, seriesCount: 0.72,
-        instanceCount: 0.68, contrast: 0.35, resolution: 0.42,
-        findings: 0.28, radiologistNotes: 0.15,
-      },
-      606
-    ),
+const DATASET = {
+  patients: generateMockRecords(
+    ["name", "age", "gender", "ethnicity", "diagnosis", "enrollmentDate", "contactEmail"],
+    1200,
+    {
+      name: 0.98,
+      age: 0.94,
+      gender: 0.93,
+      ethnicity: 0.58,
+      diagnosis: 0.86,
+      enrollmentDate: 0.95,
+      contactEmail: 0.4,
+    },
+    11,
+  ),
+  specimens: generateMockRecords(
+    ["type", "collectionDate", "volume", "storageTemp", "quality", "sourceOrgan", "patientId"],
+    2400,
+    {
+      type: 0.97,
+      collectionDate: 0.8,
+      volume: 0.69,
+      storageTemp: 0.71,
+      quality: 0.47,
+      sourceOrgan: 0.75,
+      patientId: 0.99,
+    },
+    22,
+  ),
+  genomicProfiles: generateMockRecords(
+    [
+      "sequencingPlatform",
+      "libraryStrategy",
+      "referenceGenome",
+      "coverage",
+      "mutationCount",
+      "fusionCount",
+      "tumorMutationalBurden",
+    ],
+    900,
+    {
+      sequencingPlatform: 0.9,
+      libraryStrategy: 0.83,
+      referenceGenome: 0.96,
+      coverage: 0.67,
+      mutationCount: 0.59,
+      fusionCount: 0.33,
+      tumorMutationalBurden: 0.28,
+    },
+    33,
+  ),
 };
+
+function inferGraphQLType(values: DemoRecord[], fieldName: string) {
+  const firstValue = values.find((value) => value[fieldName] !== null)?.[fieldName];
+
+  if (typeof firstValue === "number") {
+    return Number.isInteger(firstValue) ? GraphQLInt : GraphQLFloat;
+  }
+
+  return GraphQLString;
+}
+
+function createObjectType(name: string, records: DemoRecord[]) {
+  const first = records[0] ?? {};
+  const fieldEntries = Object.keys(first).reduce<Record<string, { type: typeof GraphQLString | typeof GraphQLInt | typeof GraphQLFloat }>>(
+    (accumulator, fieldName) => {
+      accumulator[fieldName] = {
+        type: inferGraphQLType(records, fieldName),
+      };
+      return accumulator;
+    },
+    {},
+  );
+
+  return new GraphQLObjectType({
+    name,
+    fields: fieldEntries,
+  });
+}
+
+const PatientType = createObjectType("Patient", DATASET.patients);
+const SpecimenType = createObjectType("Specimen", DATASET.specimens);
+const GenomicProfileType = createObjectType("GenomicProfile", DATASET.genomicProfiles);
+
+const QueryType = new GraphQLObjectType({
+  name: "Query",
+  fields: {
+    patients: {
+      type: new GraphQLList(PatientType),
+      resolve: () => DATASET.patients,
+    },
+    specimens: {
+      type: new GraphQLList(SpecimenType),
+      resolve: () => DATASET.specimens,
+    },
+    genomicProfiles: {
+      type: new GraphQLList(GenomicProfileType),
+      resolve: () => DATASET.genomicProfiles,
+    },
+  },
+});
+
+const schema = new GraphQLSchema({
+  query: QueryType,
+});
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { query } = body;
+    const body = (await request.json()) as {
+      query?: string;
+      variables?: Record<string, unknown>;
+      operationName?: string;
+    };
 
-    if (!query) {
+    if (!body.query) {
       return NextResponse.json(
-        { errors: [{ message: "No query provided" }] },
-        { status: 400 }
+        {
+          errors: [{ message: "Missing GraphQL query." }],
+        },
+        { status: 400 },
       );
     }
 
-    // Parse the query to determine which data type is being requested
-    const queryStr = query.toString().toLowerCase();
-    const responseData: Record<string, unknown> = {};
+    const result = await graphql({
+      schema,
+      source: body.query,
+      variableValues: body.variables,
+      operationName: body.operationName,
+    });
 
-    for (const [key, generator] of Object.entries(MOCK_DATA_MAP)) {
-      if (queryStr.includes(key.toLowerCase())) {
-        responseData[key] = generator();
-      }
-    }
+    const status = result.errors ? 400 : 200;
+    return NextResponse.json(result, { status });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unexpected GraphQL server error.";
 
-    if (Object.keys(responseData).length === 0) {
-      return NextResponse.json(
-        { errors: [{ message: "Unknown query type" }] },
-        { status: 400 }
-      );
-    }
-
-    // Simulate a small network delay
-    await new Promise((resolve) => setTimeout(resolve, 100 + Math.random() * 200));
-
-    return NextResponse.json({ data: responseData });
-  } catch {
     return NextResponse.json(
-      { errors: [{ message: "Internal server error" }] },
-      { status: 500 }
+      {
+        errors: [{ message }],
+      },
+      { status: 500 },
     );
   }
 }
