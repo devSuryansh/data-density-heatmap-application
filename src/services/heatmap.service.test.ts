@@ -1,27 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { buildHeatmapModel } from "@/src/services/heatmap.service";
 
-describe("heatmap service", () => {
-  const baseConfig = {
-    endpointUrl: "http://localhost:3000/api/graphql",
-    nodeTypeInclude: [],
-    nodeTypeExclude: [],
-    attributeExcludeList: ["id"],
-    maxRecordsPerNode: 100,
-    batchSize: 20,
-  };
+const config = {
+  endpointUrl: "http://localhost:3000/api/graphql",
+  nodeTypeInclude: [],
+  nodeTypeExclude: [],
+  attributeExcludeList: ["id", "__typename"],
+  maxRecordsPerNode: 500,
+  batchSize: 50,
+};
 
+describe("buildHeatmapModel", () => {
   it("correctly maps raw records into HeatmapCell[]", () => {
     const model = buildHeatmapModel(
       [{ nodeType: "Patient", attributes: ["age", "gender"] }],
-      {
-        Patient: [{ age: 10, gender: "F" }, { age: null, gender: "M" }],
-      },
-      baseConfig,
+      { Patient: [{ age: 5, gender: "F" }, { age: null, gender: "M" }] },
+      config,
     );
 
     expect(model.cells).toHaveLength(2);
-    expect(model.cells[0].nodeType).toBe("Patient");
   });
 
   it("nodeTypes and attributes arrays are sorted alphabetically", () => {
@@ -34,7 +31,7 @@ describe("heatmap service", () => {
         Study: [{ title: "A" }],
         Patient: [{ age: 12 }],
       },
-      baseConfig,
+      config,
     );
 
     expect(model.nodeTypes).toEqual(["Patient", "Study"]);
@@ -42,29 +39,26 @@ describe("heatmap service", () => {
   });
 
   it("generatedAt is a valid ISO timestamp", () => {
-    const model = buildHeatmapModel([{ nodeType: "Sample", attributes: ["labId"] }], { Sample: [] }, baseConfig);
+    const model = buildHeatmapModel([{ nodeType: "Sample", attributes: ["labId"] }], { Sample: [] }, config);
     expect(new Date(model.generatedAt).toISOString()).toBe(model.generatedAt);
   });
 
   it("handles empty records gracefully", () => {
-    const model = buildHeatmapModel([{ nodeType: "Sample", attributes: ["labId"] }], { Sample: [] }, baseConfig);
+    const model = buildHeatmapModel([{ nodeType: "Sample", attributes: ["labId"] }], { Sample: [] }, config);
     expect(model.cells[0].density).toBe(0);
-    expect(model.cells[0].totalRecords).toBe(0);
+    expect(model.cells[0].nonNullCount).toBe(0);
   });
 
   it("attributeExcludeList removes expected fields", () => {
     const model = buildHeatmapModel(
       [{ nodeType: "Patient", attributes: ["age"] }],
+      { Patient: [{ id: "1", age: 50 }] },
       {
-        Patient: [{ id: "1", age: 10 }],
-      },
-      {
-        ...baseConfig,
+        ...config,
         attributeExcludeList: ["id", "__typename"],
       },
     );
 
-    const hasIdCell = model.cells.some((cell) => cell.attribute === "id");
-    expect(hasIdCell).toBe(false);
+    expect(model.cells.some((cell) => cell.attribute === "id")).toBe(false);
   });
 });

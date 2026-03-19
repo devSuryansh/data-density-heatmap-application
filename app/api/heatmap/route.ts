@@ -1,31 +1,59 @@
 import { NextResponse } from "next/server";
-import { parseDatasetConfig } from "@/src/config/dataset.config";
-import { buildHeatmap } from "@/src/services/heatmap-builder";
+import { ConfigSchema } from "@/src/config/schema";
+import { runHeatmapPipeline } from "@/src/services/heatmap.service";
 
-export async function POST(request: Request) {
+function toAbsoluteUrl(request: Request, endpointUrl: string): string {
+  if (endpointUrl.startsWith("http://") || endpointUrl.startsWith("https://")) {
+    return endpointUrl;
+  }
+
+  const requestUrl = new URL(request.url);
+  return new URL(endpointUrl, requestUrl.origin).toString();
+}
+
+export async function POST(request: Request): Promise<NextResponse> {
+  const noStoreHeaders = {
+    "Cache-Control": "no-store",
+  };
+
   try {
     const body = (await request.json()) as unknown;
-    const config = parseDatasetConfig(body);
-
-    // Server-side GraphQL calls require an absolute URL.
-    if (config.endpoint.startsWith("/")) {
-      const baseUrl = new URL(request.url);
-      config.endpoint = new URL(config.endpoint, baseUrl.origin).toString();
+    const parsed = ConfigSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          error: "Invalid request body.",
+          details: parsed.error.flatten(),
+        },
+        {
+          status: 422,
+          headers: noStoreHeaders,
+        },
+      );
     }
 
-    const result = await buildHeatmap(config);
+    const config = {
+      ...parsed.data,
+      endpointUrl: toAbsoluteUrl(request, parsed.data.endpointUrl),
+    };
 
-    return NextResponse.json(result);
+    const result = await runHeatmapPipeline({ config });
+
+    return NextResponse.json(result, {
+      status: 200,
+      headers: noStoreHeaders,
+    });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unable to compute heatmap data.";
+    const message = error instanceof Error ? error.message : "Unable to compute heatmap data.";
+    const status = message.includes("503") ? 503 : message.includes("400") ? 400 : 500;
 
     return NextResponse.json(
       {
         error: message,
       },
       {
-        status: 400,
+        status,
+        headers: noStoreHeaders,
       },
     );
   }

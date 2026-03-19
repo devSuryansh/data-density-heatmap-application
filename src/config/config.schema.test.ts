@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ConfigSchema } from "@/src/config/schema";
-import { parseDatasetConfig } from "@/src/config/dataset.config";
 
-describe("config schema", () => {
+describe("ConfigSchema", () => {
   it("valid config passes Zod parsing", () => {
     const parsed = ConfigSchema.parse({
       endpointUrl: "https://example.org/graphql",
@@ -17,27 +16,21 @@ describe("config schema", () => {
   });
 
   it("invalid URL throws ZodError", () => {
-    expect(() =>
-      parseDatasetConfig({ endpointUrl: "invalid-url" }),
-    ).toThrowError();
+    expect(() => ConfigSchema.parse({ endpointUrl: "x" })).toThrowError();
   });
 
   it("maxRecordsPerNode > 10000 throws ZodError", () => {
-    expect(() =>
-      parseDatasetConfig({ endpointUrl: "https://example.org/graphql", maxRecordsPerNode: 10001 }),
-    ).toThrowError();
+    expect(() => ConfigSchema.parse({ endpointUrl: "https://example.org/graphql", maxRecordsPerNode: 10001 })).toThrowError();
   });
 
   it("batchSize < 1 throws ZodError", () => {
-    expect(() =>
-      parseDatasetConfig({ endpointUrl: "https://example.org/graphql", batchSize: 0 }),
-    ).toThrowError();
+    expect(() => ConfigSchema.parse({ endpointUrl: "https://example.org/graphql", batchSize: 0 })).toThrowError();
   });
 
   it("defaults are applied correctly when optional fields omitted", () => {
-    const parsed = parseDatasetConfig({ endpointUrl: "https://example.org/graphql" });
-
+    const parsed = ConfigSchema.parse({ endpointUrl: "https://example.org/graphql" });
     expect(parsed.nodeTypeInclude).toEqual([]);
+    expect(parsed.nodeTypeExclude).toEqual([]);
     expect(parsed.attributeExcludeList).toEqual(["id", "__typename"]);
     expect(parsed.maxRecordsPerNode).toBe(500);
     expect(parsed.batchSize).toBe(50);

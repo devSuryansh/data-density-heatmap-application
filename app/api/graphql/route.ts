@@ -1,16 +1,25 @@
 import { NextResponse } from "next/server";
 import {
+  GraphQLBoolean,
   GraphQLFloat,
   GraphQLInt,
   GraphQLList,
+  GraphQLNonNull,
   GraphQLObjectType,
   GraphQLSchema,
   GraphQLString,
   graphql,
 } from "graphql";
 
-type RecordValue = string | number | null;
+type RecordValue = string | number | boolean | null;
 type DemoRecord = Record<string, RecordValue>;
+
+interface ConnectionArgs {
+  first?: number;
+  after?: string;
+  limit?: number;
+  offset?: number;
+}
 
 function createSeededRandom(seed: number) {
   let value = seed;
@@ -20,32 +29,39 @@ function createSeededRandom(seed: number) {
   };
 }
 
-function generateMockRecords(
-  fields: string[],
-  count: number,
-  densityProfile: Record<string, number>,
-  seed: number,
-): DemoRecord[] {
+function generateMockRecords(fields: string[], count: number, nullRate: number, seed: number): DemoRecord[] {
   const random = createSeededRandom(seed);
 
   return Array.from({ length: count }, (_, index) => {
-    const record: DemoRecord = { id: `id-${index + 1}` };
+    const record: DemoRecord = { id: `${seed}-${index + 1}` };
 
     fields.forEach((field) => {
-      const fillRate = densityProfile[field] ?? 0.7;
-      const isFilled = random() < fillRate;
+      const isFilled = random() > nullRate;
 
       if (!isFilled) {
         record[field] = null;
         return;
       }
 
-      if (field.toLowerCase().includes("age") || field.toLowerCase().includes("count")) {
+      if (field.toLowerCase().includes("date")) {
+        const month = Math.floor(random() * 11 + 1)
+          .toString()
+          .padStart(2, "0");
+        const day = Math.floor(random() * 27 + 1)
+          .toString()
+          .padStart(2, "0");
+        record[field] = `202${Math.floor(random() * 4)}-${month}-${day}`;
+      } else if (
+        field.toLowerCase().includes("age") ||
+        field.toLowerCase().includes("volume") ||
+        field.toLowerCase().includes("bmi") ||
+        field.toLowerCase().includes("concentration")
+      ) {
         record[field] = Math.round(random() * 100);
-      } else if (field.toLowerCase().includes("coverage") || field.toLowerCase().includes("volume")) {
-        record[field] = Number((random() * 250).toFixed(2));
+      } else if (field.toLowerCase().includes("passed")) {
+        record[field] = random() > 0.5;
       } else {
-        record[field] = `${field}-${index + 1}`;
+        record[field] = `${field}-${Math.floor(random() * 8 + 1)}`;
       }
     });
 
@@ -55,53 +71,51 @@ function generateMockRecords(
 
 const DATASET = {
   patients: generateMockRecords(
-    ["name", "age", "gender", "ethnicity", "diagnosis", "enrollmentDate", "contactEmail"],
-    1200,
-    {
-      name: 0.98,
-      age: 0.94,
-      gender: 0.93,
-      ethnicity: 0.58,
-      diagnosis: 0.86,
-      enrollmentDate: 0.95,
-      contactEmail: 0.4,
-    },
+    [
+      "age",
+      "gender",
+      "diagnosisCode",
+      "enrollmentDate",
+      "siteId",
+      "consentStatus",
+      "ethnicity",
+      "smokingStatus",
+      "bmiValue",
+    ],
+    60,
+    0.15,
     11,
   ),
-  specimens: generateMockRecords(
-    ["type", "collectionDate", "volume", "storageTemp", "quality", "sourceOrgan", "patientId"],
-    2400,
-    {
-      type: 0.97,
-      collectionDate: 0.8,
-      volume: 0.69,
-      storageTemp: 0.71,
-      quality: 0.47,
-      sourceOrgan: 0.75,
-      patientId: 0.99,
-    },
+  studies: generateMockRecords(
+    [
+      "title",
+      "phase",
+      "sponsorName",
+      "startDate",
+      "endDate",
+      "status",
+      "therapeuticArea",
+      "nctId",
+      "primaryEndpoint",
+    ],
+    60,
+    0.3,
     22,
   ),
-  genomicProfiles: generateMockRecords(
+  samples: generateMockRecords(
     [
-      "sequencingPlatform",
-      "libraryStrategy",
-      "referenceGenome",
-      "coverage",
-      "mutationCount",
-      "fusionCount",
-      "tumorMutationalBurden",
+      "patientId",
+      "collectionDate",
+      "sampleType",
+      "storageTemp",
+      "processingStatus",
+      "volume",
+      "concentration",
+      "passedQC",
+      "labId",
     ],
-    900,
-    {
-      sequencingPlatform: 0.9,
-      libraryStrategy: 0.83,
-      referenceGenome: 0.96,
-      coverage: 0.67,
-      mutationCount: 0.59,
-      fusionCount: 0.33,
-      tumorMutationalBurden: 0.28,
-    },
+    60,
+    0.45,
     33,
   ),
 };
@@ -113,12 +127,18 @@ function inferGraphQLType(values: DemoRecord[], fieldName: string) {
     return Number.isInteger(firstValue) ? GraphQLInt : GraphQLFloat;
   }
 
+  if (typeof firstValue === "boolean") {
+    return GraphQLBoolean;
+  }
+
   return GraphQLString;
 }
 
 function createObjectType(name: string, records: DemoRecord[]) {
   const first = records[0] ?? {};
-  const fieldEntries = Object.keys(first).reduce<Record<string, { type: typeof GraphQLString | typeof GraphQLInt | typeof GraphQLFloat }>>(
+  const fieldEntries = Object.keys(first).reduce<
+    Record<string, { type: typeof GraphQLString | typeof GraphQLInt | typeof GraphQLFloat | typeof GraphQLBoolean }>
+  >(
     (accumulator, fieldName) => {
       accumulator[fieldName] = {
         type: inferGraphQLType(records, fieldName),
@@ -135,23 +155,128 @@ function createObjectType(name: string, records: DemoRecord[]) {
 }
 
 const PatientType = createObjectType("Patient", DATASET.patients);
-const SpecimenType = createObjectType("Specimen", DATASET.specimens);
-const GenomicProfileType = createObjectType("GenomicProfile", DATASET.genomicProfiles);
+const StudyType = createObjectType("Study", DATASET.studies);
+const SampleType = createObjectType("Sample", DATASET.samples);
+
+const PageInfoType = new GraphQLObjectType({
+  name: "PageInfo",
+  fields: {
+    hasNextPage: { type: new GraphQLNonNull(GraphQLBoolean) },
+    endCursor: { type: GraphQLString },
+  },
+});
+
+function createConnectionType(nodeName: string, nodeType: GraphQLObjectType): GraphQLObjectType {
+  const edgeType = new GraphQLObjectType({
+    name: `${nodeName}Edge`,
+    fields: {
+      cursor: { type: new GraphQLNonNull(GraphQLString) },
+      node: { type: nodeType },
+    },
+  });
+
+  return new GraphQLObjectType({
+    name: `${nodeName}Connection`,
+    fields: {
+      edges: { type: new GraphQLList(edgeType) },
+      pageInfo: { type: new GraphQLNonNull(PageInfoType) },
+    },
+  });
+}
+
+const PatientConnection = createConnectionType("Patient", PatientType);
+const StudyConnection = createConnectionType("Study", StudyType);
+const SampleConnection = createConnectionType("Sample", SampleType);
+
+function decodeCursor(cursor: string | undefined): number {
+  if (!cursor) {
+    return 0;
+  }
+
+  const decoded = Buffer.from(cursor, "base64").toString("utf8");
+  const parsed = Number(decoded);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function encodeCursor(value: number): string {
+  return Buffer.from(String(value), "utf8").toString("base64");
+}
+
+function resolvePagedRows(dataset: DemoRecord[], args: ConnectionArgs): DemoRecord[] {
+  const first = args.first ?? args.limit ?? 50;
+  const afterIndex = decodeCursor(args.after);
+  const offset = typeof args.offset === "number" ? args.offset : afterIndex;
+  return dataset.slice(offset, offset + first);
+}
+
+function resolveConnection(dataset: DemoRecord[], args: ConnectionArgs): { edges: Array<{ cursor: string; node: DemoRecord }>; pageInfo: { hasNextPage: boolean; endCursor: string } } {
+  const first = args.first ?? 50;
+  const start = decodeCursor(args.after);
+  const rows = dataset.slice(start, start + first);
+  const edges = rows.map((row, index) => ({
+    cursor: encodeCursor(start + index + 1),
+    node: row,
+  }));
+
+  return {
+    edges,
+    pageInfo: {
+      hasNextPage: start + first < dataset.length,
+      endCursor: encodeCursor(start + rows.length),
+    },
+  };
+}
 
 const QueryType = new GraphQLObjectType({
   name: "Query",
   fields: {
+    patient: {
+      type: PatientConnection,
+      args: {
+        first: { type: GraphQLInt },
+        after: { type: GraphQLString },
+      },
+      resolve: (_source, args: ConnectionArgs) => resolveConnection(DATASET.patients, args),
+    },
+    study: {
+      type: StudyConnection,
+      args: {
+        first: { type: GraphQLInt },
+        after: { type: GraphQLString },
+      },
+      resolve: (_source, args: ConnectionArgs) => resolveConnection(DATASET.studies, args),
+    },
+    sample: {
+      type: SampleConnection,
+      args: {
+        first: { type: GraphQLInt },
+        after: { type: GraphQLString },
+      },
+      resolve: (_source, args: ConnectionArgs) => resolveConnection(DATASET.samples, args),
+    },
     patients: {
       type: new GraphQLList(PatientType),
-      resolve: () => DATASET.patients,
+      args: {
+        limit: { type: GraphQLInt },
+        offset: { type: GraphQLInt },
+      },
+      resolve: (_source, args: ConnectionArgs) => resolvePagedRows(DATASET.patients, args),
     },
-    specimens: {
-      type: new GraphQLList(SpecimenType),
-      resolve: () => DATASET.specimens,
+    studies: {
+      type: new GraphQLList(StudyType),
+      args: {
+        limit: { type: GraphQLInt },
+        offset: { type: GraphQLInt },
+      },
+      resolve: (_source, args: ConnectionArgs) => resolvePagedRows(DATASET.studies, args),
     },
-    genomicProfiles: {
-      type: new GraphQLList(GenomicProfileType),
-      resolve: () => DATASET.genomicProfiles,
+    samples: {
+      type: new GraphQLList(SampleType),
+      args: {
+        limit: { type: GraphQLInt },
+        offset: { type: GraphQLInt },
+      },
+      resolve: (_source, args: ConnectionArgs) => resolvePagedRows(DATASET.samples, args),
     },
   },
 });
@@ -197,4 +322,14 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
+}
+
+export async function GET(): Promise<NextResponse> {
+  return NextResponse.json({
+    message: "Demo GraphQL endpoint is ready.",
+    examples: [
+      "POST { \"query\": \"{ patients(limit: 5) { id age } }\" }",
+      "POST { \"query\": \"{ patient(first: 5) { edges { node { id age } } pageInfo { hasNextPage endCursor } } }\" }",
+    ],
+  });
 }

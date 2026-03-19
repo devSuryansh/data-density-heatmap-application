@@ -1,6 +1,6 @@
-import type { DensityStat } from "@/src/types/heatmap";
+import type { HeatmapCell } from "@/src/types";
 
-function isPresent(value: unknown): boolean {
+export function isNonNullValue(value: unknown): boolean {
   if (value === null || value === undefined) {
     return false;
   }
@@ -16,41 +16,29 @@ function isPresent(value: unknown): boolean {
   return true;
 }
 
-export function calculateAttributeDensity(
-  records: Record<string, unknown>[],
-  attributeName: string,
-): { density: number; nonNullCount: number; totalCount: number } {
-  const totalCount = records.length;
-
-  if (totalCount === 0) {
-    return { density: 0, nonNullCount: 0, totalCount: 0 };
+export function density(nonNullCount: number, totalRecords: number): number {
+  if (totalRecords === 0) {
+    return 0;
   }
 
+  return nonNullCount / totalRecords;
+}
+
+export function buildDensityCell(
+  nodeType: string,
+  attribute: string,
+  records: Record<string, unknown>[],
+): HeatmapCell {
+  const totalRecords = records.length;
   const nonNullCount = records.reduce((count, record) => {
-    return count + (isPresent(record[attributeName]) ? 1 : 0);
+    return count + (isNonNullValue(record[attribute]) ? 1 : 0);
   }, 0);
 
   return {
-    density: nonNullCount / totalCount,
+    nodeType,
+    attribute,
+    density: density(nonNullCount, totalRecords),
     nonNullCount,
-    totalCount,
+    totalRecords,
   };
-}
-
-export function calculateNodeDensity(
-  nodeType: string,
-  fields: string[],
-  records: Record<string, unknown>[],
-): DensityStat[] {
-  return fields.map((fieldName) => {
-    const metric = calculateAttributeDensity(records, fieldName);
-
-    return {
-      nodeType,
-      attribute: fieldName,
-      density: metric.density,
-      nonNullCount: metric.nonNullCount,
-      totalCount: metric.totalCount,
-    };
-  });
 }

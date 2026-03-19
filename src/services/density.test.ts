@@ -1,45 +1,44 @@
 import { describe, expect, it } from "vitest";
-import { calculateAttributeDensity, calculateNodeDensity } from "@/src/services/density";
+import { buildDensityCell, density, isNonNullValue } from "@/src/services/density";
 
 describe("density service", () => {
-  it("calculates attribute density using non-null records", () => {
-    const records = [
-      { age: 10 },
-      { age: null },
-      { age: 7 },
-      { age: "" },
-      { age: 12 },
-    ];
-
-    const result = calculateAttributeDensity(records, "age");
-
-    expect(result.totalCount).toBe(5);
-    expect(result.nonNullCount).toBe(3);
-    expect(result.density).toBeCloseTo(0.6, 6);
+  it("density(5, 10) -> 0.5", () => {
+    expect(density(5, 10)).toBe(0.5);
   });
 
-  it("calculates density per field for a node type", () => {
-    const records = [
-      { name: "A", diagnosis: "d1" },
-      { name: "B", diagnosis: null },
-      { name: null, diagnosis: "d3" },
-      { name: "D", diagnosis: "d4" },
-    ];
+  it("density(10, 10) -> 1.0", () => {
+    expect(density(10, 10)).toBe(1);
+  });
 
-    const result = calculateNodeDensity("Patient", ["name", "diagnosis"], records);
+  it("density(0, 10) -> 0.0", () => {
+    expect(density(0, 10)).toBe(0);
+  });
 
-    expect(result).toHaveLength(2);
-    expect(result[0]).toMatchObject({
+  it("density(0, 0) -> 0.0", () => {
+    expect(density(0, 0)).toBe(0);
+  });
+
+  it("empty string treated as null", () => {
+    expect(isNonNullValue("")).toBe(false);
+  });
+
+  it("empty array treated as null", () => {
+    expect(isNonNullValue([])).toBe(false);
+  });
+
+  it("builds a density cell from records", () => {
+    const cell = buildDensityCell(
+      "Patient",
+      "gender",
+      [{ gender: "M" }, { gender: null }, { gender: "" }, { gender: "F" }],
+    );
+
+    expect(cell).toEqual({
       nodeType: "Patient",
-      attribute: "name",
-      nonNullCount: 3,
-      totalCount: 4,
-    });
-    expect(result[1]).toMatchObject({
-      nodeType: "Patient",
-      attribute: "diagnosis",
-      nonNullCount: 3,
-      totalCount: 4,
+      attribute: "gender",
+      density: 0.5,
+      nonNullCount: 2,
+      totalRecords: 4,
     });
   });
 });

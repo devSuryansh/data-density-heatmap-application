@@ -1,97 +1,130 @@
 # Data Density Heatmap Application
 
-This repository contains a modular MVP for analyzing GraphQL dataset completeness and visualizing it as a heatmap matrix.
+[![Build](https://img.shields.io/github/actions/workflow/status/devSuryansh/data-density-heatmap-application/ci.yml?branch=main)](https://github.com/devSuryansh/data-density-heatmap-application/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](./LICENSE)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](./CHANGELOG.md)
+[![Affiliation](https://img.shields.io/badge/D4CG-Chicago%20PCDC-0ea5e9)](https://chicagopcdc.org)
 
-It is designed as a practical demonstration for the D4CG / Chicago PCDC context, with an emphasis on clear architecture, maintainability, and correctness.
+Data Density Heatmap Application is a production-grade, configuration-driven web tool that visualizes GraphQL dataset completeness as an interactive matrix so D4CG / Chicago PCDC researchers and data managers can quickly identify quality gaps and prioritize curation.
 
-## What It Does
+![Data Density Heatmap dashboard demo placeholder](public/heatmap-demo-placeholder.png)
 
-1. Introspects a GraphQL schema.
-1. Discovers queryable node types and scalar/enum attributes.
-1. Fetches records in batches using Apollo Client.
-1. Computes per-attribute density:
+## Features
 
-$$
-density = \frac{non\_null\_values}{total\_records}
-$$
-
-1. Produces a matrix and renders it with D3.js heatmap cells.
+- Introspection-first schema discovery with queryable node filtering
+- Scalar/enum attribute extraction with include/exclude controls
+- Batched GraphQL record fetching with relay cursor and offset fallback
+- Density model based on $density = \frac{nonNullCount}{totalRecords}$
+- D3 SVG heatmap with tooltips, transitions, and click callbacks
+- Sortable density table with severity badges
+- Runtime config panel with persisted settings
+- API boundary validation through Zod
+- CSV and SVG export controls
 
 ## Tech Stack
 
-- Next.js App Router + TypeScript
-- Apollo Client
-- GraphQL
-- D3.js
-- Zod
-- Vitest
+| Layer | Technology |
+| --- | --- |
+| Framework | Next.js 15 (App Router) |
+| Language | TypeScript (strict mode) |
+| Runtime | Bun 1.1+ |
+| Data | GraphQL + Apollo Client |
+| Visualization | D3.js v7 |
+| Validation | Zod |
+| Testing | Vitest + jsdom + coverage-v8 |
+| Styling | Tailwind CSS v4 |
 
-## Architecture
+## Getting Started
 
-The codebase is organized by responsibilities:
+### Prerequisites
 
-- `app/`
-  - API routes and Next.js app entrypoints
-  - `app/api/graphql/route.ts`: in-repo GraphQL demo endpoint (supports introspection)
-  - `app/api/heatmap/route.ts`: computes heatmap data from runtime config
-- `src/config/`
-  - config schema + default config + validation
-- `src/graphql/`
-  - Apollo client setup, schema discovery, batched record fetch
-- `src/services/`
-  - density calculations and heatmap model transformation
-- `src/components/heatmap/`
-  - D3 chart, legend, and density table
-- `src/hooks/`
-  - UI data-fetch orchestration
-- `src/types/`
-  - shared domain types
+- Bun >= 1.1.0
+- Node.js >= 18 (for ecosystem tooling compatibility)
 
-## Configuration
-
-Default runtime config lives in `src/config/dataset.config.ts` and is fully validated with Zod.
-
-You can configure:
-
-- endpoint URL
-- node type include/exclude filters
-- attribute exclude list
-- max records per node
-- query batch size
-
-At runtime, the UI exposes these controls, and the API validates the config before analysis.
-
-## Running Locally
+### Installation
 
 ```bash
-npm install
-npm run dev
+bun install --frozen-lockfile
 ```
 
-App URL:
-
-- `http://localhost:3000`
-
-## Quality Checks
+### Running Locally
 
 ```bash
-npm run lint
-npm run test
-npm run build
+bun run dev
 ```
 
-## Deployment
+Open http://localhost:3000.
 
-Deploy with Vercel:
+### Environment Variables
 
-1. Import this repository into Vercel.
-2. Set `NEXT_PUBLIC_GRAPHQL_ENDPOINT` if using a remote GraphQL source.
-3. Deploy.
+Copy `.env.example` to `.env.local` and adjust values:
 
-## Design Decisions
+```bash
+NEXT_PUBLIC_GRAPHQL_ENDPOINT=http://localhost:3000/api/graphql
+NEXT_PUBLIC_ORG_NAME=D4CG
+NEXT_PUBLIC_ORG_LOGO_URL=
+```
 
-- Configuration-driven behavior instead of hardcoded node queries.
-- Introspection-based discovery to adapt to changing schemas.
-- Batched query execution for fewer round-trips.
-- Separation of UI, GraphQL integration, and density logic for maintainability.
-- Unit tests on critical transformation logic.
+## Architecture Overview
+
+See [docs/architecture.md](docs/architecture.md) for system diagrams, request flow, design decisions, and roadmap notes.
+
+## Configuration Reference
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `endpointUrl` | `string (url)` | none | GraphQL endpoint used for introspection and record retrieval |
+| `nodeTypeInclude` | `string[]` | `[]` | Optional allow-list of node types |
+| `nodeTypeExclude` | `string[]` | `[]` | Optional deny-list of node types |
+| `attributeExcludeList` | `string[]` | `["id","__typename"]` | Attributes excluded from density computation |
+| `maxRecordsPerNode` | `number` | `500` | Max rows to fetch per node type |
+| `batchSize` | `number` | `50` | Page/query batch size |
+| `orgName` | `string?` | undefined | Branding text used in header |
+| `orgLogoUrl` | `string(url)?` | undefined | Optional logo URL |
+
+## API Reference
+
+### `POST /api/heatmap`
+
+Request body: `ConfigSchema`
+
+```json
+{
+  "endpointUrl": "http://localhost:3000/api/graphql",
+  "nodeTypeInclude": [],
+  "nodeTypeExclude": [],
+  "attributeExcludeList": ["id", "__typename"],
+  "maxRecordsPerNode": 500,
+  "batchSize": 50,
+  "orgName": "D4CG"
+}
+```
+
+Success response: `HeatmapModel`
+
+```json
+{
+  "cells": [{ "nodeType": "Patient", "attribute": "age", "density": 0.85, "nonNullCount": 51, "totalRecords": 60 }],
+  "nodeTypes": ["Patient", "Sample", "Study"],
+  "attributes": ["age", "diagnosisCode", "title"],
+  "generatedAt": "2026-03-19T10:30:00.000Z",
+  "endpointUrl": "http://localhost:3000/api/graphql"
+}
+```
+
+Error response:
+
+```json
+{
+  "error": "Invalid request body.",
+  "details": {}
+}
+```
+
+## Contributing
+
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE).

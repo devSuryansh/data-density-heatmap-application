@@ -1,19 +1,21 @@
 import { ApolloClient, HttpLink, InMemoryCache } from "@apollo/client";
 
 export function createApolloClient(
-  endpoint: string,
+  endpointUrl: string,
   headers?: Record<string, string>,
 ): ApolloClient<unknown> {
   return new ApolloClient({
+    ssrMode: typeof window === "undefined",
     cache: new InMemoryCache(),
     link: new HttpLink({
-      uri: endpoint,
+      uri: endpointUrl,
       headers,
       fetch,
     }),
     defaultOptions: {
       query: {
-        fetchPolicy: "cache-first",
+        fetchPolicy: "no-cache",
+        errorPolicy: "all",
       },
     },
   });
