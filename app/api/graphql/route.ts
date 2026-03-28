@@ -6,13 +6,12 @@ import {
   GraphQLList,
   GraphQLNonNull,
   GraphQLObjectType,
+  type GraphQLOutputType,
   GraphQLSchema,
   GraphQLString,
   graphql,
 } from "graphql";
-
-type RecordValue = string | number | boolean | null;
-type DemoRecord = Record<string, RecordValue>;
+import { buildDemoDataset, type DemoObject, type DemoRecord } from "@/src/services/demo-generator";
 
 interface ConnectionArgs {
   first?: number;
@@ -20,108 +19,23 @@ interface ConnectionArgs {
   limit?: number;
   offset?: number;
 }
+const DATASET = buildDemoDataset();
 
-function createSeededRandom(seed: number) {
-  let value = seed;
-  return () => {
-    value = (value * 16807) % 2147483647;
-    return (value - 1) / 2147483646;
-  };
+function toTypeNamePart(input: string): string {
+  return input
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .split(" ")
+    .filter((segment) => segment.length > 0)
+    .map((segment) => `${segment.charAt(0).toUpperCase()}${segment.slice(1)}`)
+    .join("");
 }
 
-function generateMockRecords(fields: string[], count: number, nullRate: number, seed: number): DemoRecord[] {
-  const random = createSeededRandom(seed);
-
-  return Array.from({ length: count }, (_, index) => {
-    const record: DemoRecord = { id: `${seed}-${index + 1}` };
-
-    fields.forEach((field) => {
-      const isFilled = random() > nullRate;
-
-      if (!isFilled) {
-        record[field] = null;
-        return;
-      }
-
-      if (field.toLowerCase().includes("date")) {
-        const month = Math.floor(random() * 11 + 1)
-          .toString()
-          .padStart(2, "0");
-        const day = Math.floor(random() * 27 + 1)
-          .toString()
-          .padStart(2, "0");
-        record[field] = `202${Math.floor(random() * 4)}-${month}-${day}`;
-      } else if (
-        field.toLowerCase().includes("age") ||
-        field.toLowerCase().includes("volume") ||
-        field.toLowerCase().includes("bmi") ||
-        field.toLowerCase().includes("concentration")
-      ) {
-        record[field] = Math.round(random() * 100);
-      } else if (field.toLowerCase().includes("passed")) {
-        record[field] = random() > 0.5;
-      } else {
-        record[field] = `${field}-${Math.floor(random() * 8 + 1)}`;
-      }
-    });
-
-    return record;
-  });
-}
-
-const DATASET = {
-  patients: generateMockRecords(
-    [
-      "age",
-      "gender",
-      "diagnosisCode",
-      "enrollmentDate",
-      "siteId",
-      "consentStatus",
-      "ethnicity",
-      "smokingStatus",
-      "bmiValue",
-    ],
-    60,
-    0.15,
-    11,
-  ),
-  studies: generateMockRecords(
-    [
-      "title",
-      "phase",
-      "sponsorName",
-      "startDate",
-      "endDate",
-      "status",
-      "therapeuticArea",
-      "nctId",
-      "primaryEndpoint",
-    ],
-    60,
-    0.3,
-    22,
-  ),
-  samples: generateMockRecords(
-    [
-      "patientId",
-      "collectionDate",
-      "sampleType",
-      "storageTemp",
-      "processingStatus",
-      "volume",
-      "concentration",
-      "passedQC",
-      "labId",
-    ],
-    60,
-    0.45,
-    33,
-  ),
-};
-
-function inferGraphQLType(values: DemoRecord[], fieldName: string) {
-  const firstValue = values.find((value) => value[fieldName] !== null)?.[fieldName];
+function inferTypeFromValues(
+  values: Array<unknown>,
+  typeName: string,
+  registry: Map<string, GraphQLObjectType>,
+): GraphQLOutputType {
+  const firstValue = values.find((value) => value !== null && value !== undefined);
 
   if (typeof firstValue === "number") {
     return Number.isInteger(firstValue) ? GraphQLInt : GraphQLFloat;
@@ -131,32 +45,89 @@ function inferGraphQLType(values: DemoRecord[], fieldName: string) {
     return GraphQLBoolean;
   }
 
+  if (firstValue && typeof firstValue === "object" && !Array.isArray(firstValue)) {
+    return createNestedObjectType(typeName, values as DemoObject[], registry);
+  }
+
   return GraphQLString;
 }
 
-function createObjectType(name: string, records: DemoRecord[]) {
-  const first = records[0] ?? {};
-  const fieldEntries = Object.keys(first).reduce<
-    Record<string, { type: typeof GraphQLString | typeof GraphQLInt | typeof GraphQLFloat | typeof GraphQLBoolean }>
-  >(
+function createNestedObjectType(
+  name: string,
+  objects: DemoObject[],
+  registry: Map<string, GraphQLObjectType>,
+): GraphQLObjectType {
+  const existing = registry.get(name);
+  if (existing) {
+    return existing;
+  }
+
+  const nestedType = new GraphQLObjectType({
+    name,
+    fields: () => {
+      const nestedKeys = Array.from(
+        new Set(
+          objects.flatMap((value) => {
+            if (!value || typeof value !== "object") {
+              return [];
+            }
+            return Object.keys(value);
+          }),
+        ),
+      );
+
+      if (nestedKeys.length === 0) {
+        return {
+          raw: { type: GraphQLString },
+        };
+      }
+
+      return nestedKeys.reduce<Record<string, { type: GraphQLOutputType }>>((accumulator, key) => {
+        const nestedValues = objects
+          .map((value) => (value && typeof value === "object" ? value[key] : undefined))
+          .filter((value) => value !== undefined);
+
+        accumulator[key] = {
+          type: inferTypeFromValues(nestedValues, `${name}${toTypeNamePart(key)}`, registry),
+        };
+        return accumulator;
+      }, {});
+    },
+  });
+
+  registry.set(name, nestedType);
+  return nestedType;
+}
+
+function createObjectType(name: string, records: DemoRecord[], registry: Map<string, GraphQLObjectType>) {
+  const fieldNames = Array.from(new Set(records.flatMap((record) => Object.keys(record))));
+  const fieldEntries = fieldNames.reduce<Record<string, { type: GraphQLOutputType }>>(
     (accumulator, fieldName) => {
+      const values = records
+        .map((record) => record[fieldName])
+        .filter((value) => value !== undefined);
+
       accumulator[fieldName] = {
-        type: inferGraphQLType(records, fieldName),
+        type: inferTypeFromValues(values, `${name}${toTypeNamePart(fieldName)}`, registry),
       };
       return accumulator;
     },
     {},
   );
 
-  return new GraphQLObjectType({
+  const objectType = new GraphQLObjectType({
     name,
     fields: fieldEntries,
   });
+
+  registry.set(name, objectType);
+  return objectType;
 }
 
-const PatientType = createObjectType("Patient", DATASET.patients);
-const StudyType = createObjectType("Study", DATASET.studies);
-const SampleType = createObjectType("Sample", DATASET.samples);
+const typeRegistry = new Map<string, GraphQLObjectType>();
+const PatientType = createObjectType("Patient", DATASET.patients, typeRegistry);
+const StudyType = createObjectType("Study", DATASET.studies, typeRegistry);
+const SampleType = createObjectType("Sample", DATASET.samples, typeRegistry);
 
 const PageInfoType = new GraphQLObjectType({
   name: "PageInfo",

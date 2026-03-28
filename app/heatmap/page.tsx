@@ -46,7 +46,7 @@ export default function HeatmapPage(): JSX.Element {
   };
 
   return (
-    <div className="page-enter min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
+    <div className="page-enter min-h-screen bg-(--color-bg) text-(--color-text)">
       <OrgHeader
         appTitle={APP_TITLE}
         orgName={config.orgName ?? "D4CG"}
@@ -56,7 +56,7 @@ export default function HeatmapPage(): JSX.Element {
         isRefreshing={loading}
       />
 
-      <main className="mx-auto grid max-w-7xl grid-cols-1 gap-4 px-4 py-5 lg:grid-cols-[280px_minmax(0,1fr)] lg:px-8">
+      <main className="mx-auto grid max-w-7xl grid-cols-1 gap-5 px-4 py-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:px-8">
         <ConfigPanel
           config={config}
           onChange={setConfig}
@@ -66,10 +66,10 @@ export default function HeatmapPage(): JSX.Element {
         />
 
         <section className="space-y-3">
-          <div className="flex items-center justify-between gap-3 border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
+          <div className="flex items-center justify-between gap-3 rounded-md border border-(--color-border) bg-(--color-surface) px-3 py-2 shadow-[0_1px_2px_rgba(17,24,39,0.04)]">
             <div className="flex items-center gap-2">
               <StatusBadge status={status} />
-              {error ? <span className="text-xs text-[var(--color-danger)]">{error}</span> : null}
+              {error ? <span className="text-xs text-(--color-danger)">{error}</span> : null}
             </div>
             <ExportButton model={model} chartSelector={HEATMAP_SVG_SELECTOR} />
           </div>
@@ -78,10 +78,10 @@ export default function HeatmapPage(): JSX.Element {
             <button
               type="button"
               onClick={() => setActiveTab("heatmap")}
-              className={`border px-3 py-1 text-xs ${
+              className={`rounded-sm border px-3 py-1 text-xs font-medium transition-colors ${
                 activeTab === "heatmap"
-                  ? "border-[var(--color-accent)] bg-[var(--color-accent-glow)]"
-                  : "border-[var(--color-border)]"
+                  ? "border-(--color-accent) bg-(--color-accent) text-white"
+                  : "border-(--color-border) bg-(--color-surface) text-(--color-text) hover:bg-(--color-accent-soft)"
               }`}
             >
               Heatmap
@@ -89,10 +89,10 @@ export default function HeatmapPage(): JSX.Element {
             <button
               type="button"
               onClick={() => setActiveTab("table")}
-              className={`border px-3 py-1 text-xs ${
+              className={`rounded-sm border px-3 py-1 text-xs font-medium transition-colors ${
                 activeTab === "table"
-                  ? "border-[var(--color-accent)] bg-[var(--color-accent-glow)]"
-                  : "border-[var(--color-border)]"
+                    ? "border-(--color-accent) bg-(--color-accent) text-white"
+                    : "border-(--color-border) bg-(--color-surface) text-(--color-text) hover:bg-(--color-accent-soft)"
               }`}
             >
               Density Table

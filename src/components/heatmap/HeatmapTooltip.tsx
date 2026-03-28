@@ -16,10 +16,10 @@ export function HeatmapTooltip({ cell, x, y, visible }: HeatmapTooltipProps): JS
 
   return (
     <div
-      className="pointer-events-none absolute z-20 max-w-xs border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs text-[var(--color-text)] shadow-xl"
+      className="pointer-events-none absolute z-20 max-w-xs rounded-sm border border-(--color-border) bg-(--color-surface) px-3 py-2 text-xs text-(--color-text) shadow-[0_8px_24px_rgba(17,24,39,0.08)]"
       style={{ left: x, top: y }}
     >
-      <p className="font-semibold">{cell.nodeType}</p>
+      <p className="font-semibold tracking-tight">{cell.nodeType}</p>
       <p>{cell.attribute}</p>
       <p>Density: {(cell.density * 100).toFixed(2)}%</p>
       <p>Non-null: {cell.nonNullCount}</p>

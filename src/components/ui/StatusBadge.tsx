@@ -3,13 +3,13 @@
 import type { StatusInfo } from "@/src/types";
 
 const STATUS_STYLES: Record<StatusInfo["state"], string> = {
-  idle: "bg-slate-700 text-slate-100",
-  connecting: "bg-blue-600/20 text-blue-300",
-  introspecting: "bg-indigo-600/20 text-indigo-300",
-  fetching: "bg-cyan-600/20 text-cyan-300",
-  computing: "bg-amber-600/20 text-amber-300",
-  ready: "bg-emerald-600/20 text-emerald-300",
-  error: "bg-rose-600/20 text-rose-300",
+  idle: "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-muted)]",
+  connecting: "border-[#dbe3f0] bg-[#f7f9fc] text-[#31517a]",
+  introspecting: "border-[#e2ddf3] bg-[#f9f7fd] text-[#4f3e82]",
+  fetching: "border-[#d8eaf0] bg-[#f5fafc] text-[#2d5f6e]",
+  computing: "border-[#f0e3cf] bg-[#fdf9f2] text-[#7c5b2a]",
+  ready: "border-[#d7eadc] bg-[#f4faf6] text-[#2c5c3a]",
+  error: "border-[#f3d7d5] bg-[#fdf5f4] text-[#8c2f2b]",
 };
 
 interface StatusBadgeProps {
@@ -18,7 +18,9 @@ interface StatusBadgeProps {
 
 export function StatusBadge({ status }: StatusBadgeProps): JSX.Element {
   return (
-    <span className={`status-slide rounded border border-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide ${STATUS_STYLES[status.state]}`}>
+    <span
+      className={`status-slide rounded-sm border px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] ${STATUS_STYLES[status.state]}`}
+    >
       {status.label}
     </span>
   );

@@ -17,16 +17,25 @@ export function HeatmapLegend(): JSX.Element {
   }, []);
 
   return (
-    <div className="flex items-center gap-3 text-xs text-[var(--color-text-muted)]">
+    <div className="flex items-center gap-3 text-xs text-(--color-text-muted)">
       <span>0%</span>
       <svg ref={gradientRef} width={240} height={12}>
         <defs>
           <linearGradient id="legendGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#f0f9e8" />
-            <stop offset="100%" stopColor="#084081" />
+            <stop offset="0%" stopColor="#b91c1c" />
+            <stop offset="50%" stopColor="#f59e0b" />
+            <stop offset="100%" stopColor="#15803d" />
           </linearGradient>
         </defs>
-        <rect className="legend-bar" x="0" y="0" width="240" height="12" fill="url(#legendGradient)" />
+        <rect
+          className="legend-bar"
+          x="0"
+          y="0"
+          width="240"
+          height="12"
+          fill="url(#legendGradient)"
+          stroke="var(--color-border)"
+        />
       </svg>
       <span>100%</span>
     </div>

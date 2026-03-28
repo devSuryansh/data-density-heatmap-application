@@ -12,6 +12,7 @@ interface TypeRef {
 interface IntrospectionField {
   name: string;
   type: TypeRef;
+  args?: Array<{ name: string }>;
 }
 
 interface IntrospectionType {
@@ -57,13 +58,57 @@ function isScalarOrEnum(field: IntrospectionField): boolean {
   return unwrapped.kind === "SCALAR" || unwrapped.kind === "ENUM";
 }
 
+interface QueryFieldCandidate {
+  fieldName: string;
+  prefersRelay: boolean;
+}
+
+function chooseBetterCandidate(
+  existing: QueryFieldCandidate | undefined,
+  next: QueryFieldCandidate,
+): QueryFieldCandidate {
+  if (!existing) {
+    return next;
+  }
+
+  if (next.prefersRelay && !existing.prefersRelay) {
+    return next;
+  }
+
+  return existing;
+}
+
 function buildQueryFieldToTypeMap(queryType: IntrospectionType): Map<string, string> {
-  const map = new Map<string, string>();
+  const candidateMap = new Map<string, QueryFieldCandidate>();
+
   for (const field of queryType.fields ?? []) {
     const resolved = unwrapType(field.type);
-    if (resolved.name) {
-      map.set(resolved.name, field.name);
+    const resolvedName = resolved.name;
+    if (!resolvedName) {
+      continue;
     }
+
+    const argNames = new Set((field.args ?? []).map((arg) => arg.name));
+    const supportsRelay = argNames.has("first") || argNames.has("after");
+    const candidate: QueryFieldCandidate = {
+      fieldName: field.name,
+      prefersRelay: supportsRelay,
+    };
+
+    if (resolvedName.endsWith("Connection")) {
+      const nodeTypeName = resolvedName.slice(0, -"Connection".length);
+      const existing = candidateMap.get(nodeTypeName);
+      candidateMap.set(nodeTypeName, chooseBetterCandidate(existing, candidate));
+      continue;
+    }
+
+    const existing = candidateMap.get(resolvedName);
+    candidateMap.set(resolvedName, chooseBetterCandidate(existing, candidate));
+  }
+
+  const map = new Map<string, string>();
+  for (const [typeName, queryField] of candidateMap.entries()) {
+    map.set(typeName, queryField.fieldName);
   }
 
   return map;

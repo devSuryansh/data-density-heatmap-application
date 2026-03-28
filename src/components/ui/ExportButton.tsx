@@ -51,14 +51,14 @@ export function ExportButton({ model, chartSelector }: ExportButtonProps): JSX.E
       <button
         type="button"
         onClick={exportSvg}
-        className="border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text)]"
+        className="rounded-sm border border-(--color-border) bg-(--color-surface) px-3 py-1.5 text-xs font-medium text-(--color-text) transition-colors hover:bg-(--color-accent-soft)"
       >
         Export SVG
       </button>
       <button
         type="button"
         onClick={exportCsv}
-        className="border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text)]"
+        className="rounded-sm border border-(--color-border) bg-(--color-surface) px-3 py-1.5 text-xs font-medium text-(--color-text) transition-colors hover:bg-(--color-accent-soft)"
       >
         Export CSV
       </button>

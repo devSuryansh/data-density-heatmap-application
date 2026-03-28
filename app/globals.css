@@ -1,16 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --color-bg: #0f1117;
-  --color-surface: #1a1d27;
-  --color-border: #2a2d3a;
-  --color-text: #e8eaf0;
-  --color-text-muted: #6b7280;
-  --color-accent: #3b82f6;
-  --color-accent-glow: rgba(59, 130, 246, 0.15);
-  --color-success: #22c55e;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
+  --color-bg: #f8f8f6;
+  --color-surface: #ffffff;
+  --color-border: #e8e8e4;
+  --color-text: #171717;
+  --color-text-muted: #6a6a66;
+  --color-accent: #111111;
+  --color-accent-soft: #f1f1ee;
+  --color-danger: #b42318;
 }
 
 @layer base {
@@ -21,12 +19,10 @@
   body {
     margin: 0;
     min-height: 100vh;
-    background:
-      radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.1), transparent 40%),
-      radial-gradient(circle at 100% 0%, rgba(56, 189, 248, 0.08), transparent 30%),
-      var(--color-bg);
+    background: var(--color-bg);
     color: var(--color-text);
     font-family: var(--font-ibm-plex-sans), sans-serif;
+    line-height: 1.4;
   }
 
   h1,
@@ -39,64 +35,9 @@
   }
 }
 
-.page-enter {
-  animation: pageFade 300ms ease forwards;
-}
-
-.panel-enter {
-  animation: panelSlide 350ms ease-out forwards;
-}
-
-.chart-enter {
-  animation: chartScale 400ms ease-out forwards;
-}
-
+.page-enter,
+.panel-enter,
+.chart-enter,
 .status-slide {
-  animation: statusSlide 180ms ease-out forwards;
-}
-
-@keyframes pageFade {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes panelSlide {
-  from {
-    opacity: 0;
-    transform: translateX(-100%);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes chartScale {
-  from {
-    opacity: 0;
-    transform: scale(0.97);
-  }
-
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes statusSlide {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  animation: none;
 }

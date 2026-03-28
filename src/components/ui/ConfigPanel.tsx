@@ -29,54 +29,54 @@ export function ConfigPanel({
   };
 
   return (
-    <aside className="panel-enter h-fit border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-      <h2 className="mb-4 font-mono text-sm uppercase tracking-wide text-[var(--color-text)]">Configuration</h2>
+    <aside className="panel-enter h-fit rounded-md border border-(--color-border) bg-(--color-surface) p-4 shadow-[0_1px_2px_rgba(17,24,39,0.04)]">
+      <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-(--color-text)">Configuration</h2>
       <div className="space-y-3 text-sm">
-        <label className="block text-[var(--color-text-muted)]">
+        <label className="block text-(--color-text-muted)">
           Endpoint URL
           <input
             value={config.endpointUrl}
             onChange={(event) => update("endpointUrl", event.target.value)}
-            className="mt-1 w-full border border-[var(--color-border)] bg-[#11141c] px-2 py-1.5 text-[var(--color-text)]"
+            className="mt-1 w-full rounded-sm border border-(--color-border) bg-(--color-surface) px-2 py-1.5 text-(--color-text) outline-none transition-colors focus:border-(--color-accent)"
           />
         </label>
 
         <button
           type="button"
           onClick={onTestConnection}
-          className="w-full border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text)]"
+          className="w-full rounded-sm border border-(--color-border) bg-(--color-surface) px-3 py-1.5 text-xs font-medium text-(--color-text) transition-colors hover:bg-(--color-accent-soft)"
         >
           Test Connection
         </button>
 
-        <label className="block text-[var(--color-text-muted)]">
+        <label className="block text-(--color-text-muted)">
           Include node types
           <input
             value={config.nodeTypeInclude.join(", ")}
             onChange={(event) => update("nodeTypeInclude", parseTags(event.target.value))}
-            className="mt-1 w-full border border-[var(--color-border)] bg-[#11141c] px-2 py-1.5 text-[var(--color-text)]"
+            className="mt-1 w-full rounded-sm border border-(--color-border) bg-(--color-surface) px-2 py-1.5 text-(--color-text) outline-none transition-colors focus:border-(--color-accent)"
           />
         </label>
 
-        <label className="block text-[var(--color-text-muted)]">
+        <label className="block text-(--color-text-muted)">
           Exclude node types
           <input
             value={config.nodeTypeExclude.join(", ")}
             onChange={(event) => update("nodeTypeExclude", parseTags(event.target.value))}
-            className="mt-1 w-full border border-[var(--color-border)] bg-[#11141c] px-2 py-1.5 text-[var(--color-text)]"
+            className="mt-1 w-full rounded-sm border border-(--color-border) bg-(--color-surface) px-2 py-1.5 text-(--color-text) outline-none transition-colors focus:border-(--color-accent)"
           />
         </label>
 
-        <label className="block text-[var(--color-text-muted)]">
+        <label className="block text-(--color-text-muted)">
           Exclude attributes
           <input
             value={config.attributeExcludeList.join(", ")}
             onChange={(event) => update("attributeExcludeList", parseTags(event.target.value))}
-            className="mt-1 w-full border border-[var(--color-border)] bg-[#11141c] px-2 py-1.5 text-[var(--color-text)]"
+            className="mt-1 w-full rounded-sm border border-(--color-border) bg-(--color-surface) px-2 py-1.5 text-(--color-text) outline-none transition-colors focus:border-(--color-accent)"
           />
         </label>
 
-        <label className="block text-[var(--color-text-muted)]">
+        <label className="block text-(--color-text-muted)">
           Max records per node ({config.maxRecordsPerNode})
           <input
             type="range"
@@ -89,7 +89,7 @@ export function ConfigPanel({
           />
         </label>
 
-        <label className="block text-[var(--color-text-muted)]">
+        <label className="block text-(--color-text-muted)">
           Batch size ({config.batchSize})
           <input
             type="range"
@@ -106,7 +106,7 @@ export function ConfigPanel({
           type="button"
           onClick={onRunAnalysis}
           disabled={loading}
-          className="w-full border border-[var(--color-accent)] bg-[var(--color-accent)] px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
+          className="w-full rounded-sm border border-(--color-accent) bg-(--color-accent) px-3 py-2 text-xs font-semibold text-white transition-opacity disabled:opacity-60"
         >
           {loading ? "Running..." : "Run Analysis"}
         </button>

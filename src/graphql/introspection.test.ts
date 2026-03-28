@@ -83,4 +83,64 @@ describe("introspection", () => {
     const patient = mapped.find((item) => item.nodeType === "Patient");
     expect(patient?.attributes).toEqual(["gender", "status"]);
   });
+
+  it("prefers relay query field over list query field for the same type", () => {
+    const mapped = mapQueryableNodeTypes(
+      {
+        __schema: {
+          queryType: { name: "Query" },
+          types: [
+            {
+              kind: "OBJECT",
+              name: "Query",
+              fields: [
+                {
+                  name: "patient",
+                  args: [{ name: "first" }, { name: "after" }],
+                  type: {
+                    kind: "OBJECT",
+                    name: "PatientConnection",
+                  },
+                },
+                {
+                  name: "patients",
+                  args: [{ name: "limit" }, { name: "offset" }],
+                  type: {
+                    kind: "LIST",
+                    name: null,
+                    ofType: {
+                      kind: "OBJECT",
+                      name: "Patient",
+                    },
+                  },
+                },
+              ],
+            },
+            {
+              kind: "OBJECT",
+              name: "Patient",
+              fields: [
+                { name: "id", type: { kind: "SCALAR", name: "String" } },
+                { name: "gender", type: { kind: "SCALAR", name: "String" } },
+              ],
+            },
+            {
+              kind: "OBJECT",
+              name: "PatientConnection",
+              fields: [],
+            },
+          ],
+        },
+      },
+      baseConfig,
+    );
+
+    expect(mapped).toEqual([
+      {
+        nodeType: "Patient",
+        queryField: "patient",
+        attributes: ["gender"],
+      },
+    ]);
+  });
 });
