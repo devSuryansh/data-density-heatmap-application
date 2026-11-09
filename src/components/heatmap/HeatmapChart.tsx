@@ -168,7 +168,7 @@ export function HeatmapChart({ model, onCellClick }: HeatmapChartProps): JSX.Ele
           .attr("stroke-dasharray", "0");
 
     cells
-      .on("mouseenter", (event, datum) => {
+      .on("mouseenter", function (this: SVGRectElement, event: MouseEvent, datum: PositionedCell) {
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
         const rawX = event.clientX + 14;
@@ -177,11 +177,11 @@ export function HeatmapChart({ model, onCellClick }: HeatmapChartProps): JSX.Ele
         const clampedY = Math.min(rawY, viewportHeight - 120);
 
         setTooltipState({ cell: datum, visible: true, x: clampedX, y: clampedY });
-        d3.select<SVGRectElement, PositionedCell>(event.currentTarget).style("filter", "brightness(1.15)");
+        d3.select(this).style("filter", "brightness(1.15)");
       })
-      .on("mouseleave", (event) => {
+      .on("mouseleave", function (this: SVGRectElement) {
         setTooltipState((previous) => ({ ...previous, visible: false }));
-        d3.select<SVGRectElement, PositionedCell>(event.currentTarget).style("filter", "none");
+        d3.select(this).style("filter", "none");
       })
       .on("mousemove", (event) => {
         const viewportWidth = window.innerWidth;

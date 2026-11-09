@@ -98,12 +98,13 @@ export async function fetchNodeRecords(
     return output.slice(0, maxRecordsPerNode);
   }
 
-  for (let offset = 0; output.length < maxRecordsPerNode; offset += batchSize) {
+  const fallbackOutput: Record<string, unknown>[] = [];
+  for (let offset = 0; fallbackOutput.length < maxRecordsPerNode; offset += batchSize) {
     const offsetResult: ApolloQueryResult<Record<string, unknown>> =
       await client.query<Record<string, unknown>>({
       query: gql(buildOffsetQuery(node)),
       variables: {
-        limit: Math.min(batchSize, maxRecordsPerNode - output.length),
+        limit: Math.min(batchSize, maxRecordsPerNode - fallbackOutput.length),
         offset,
       },
     });
@@ -117,12 +118,16 @@ export async function fetchNodeRecords(
       break;
     }
 
-    output.push(...pageRecords);
-    onProgress?.(node.nodeType, output.length, maxRecordsPerNode);
+    fallbackOutput.push(...pageRecords);
+    onProgress?.(node.nodeType, fallbackOutput.length, maxRecordsPerNode);
 
     if (pageRecords.length < batchSize) {
       break;
     }
+  }
+
+  if (fallbackOutput.length >= output.length) {
+    return fallbackOutput.slice(0, maxRecordsPerNode);
   }
 
   return output.slice(0, maxRecordsPerNode);
